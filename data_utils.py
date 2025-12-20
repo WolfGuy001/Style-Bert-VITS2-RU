@@ -59,10 +59,6 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
         """
         Filter text & store spec lengths
         """
-        # Store spectrogram lengths for Bucketing
-        # wav_length ~= file_size / (wav_channels * Bytes per dim) = file_size / (1 * 2)
-        # spec_length = wav_length // hop_length
-
         audiopaths_sid_text_new = []
         lengths = []
         skipped = 0
@@ -71,7 +67,6 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
             self.audiopaths_sid_text, file=sys.stdout, dynamic_ncols=True
         ):
             audiopath = f"{_id}"
-            # if self.min_text_len <= len(phones) and len(phones) <= self.max_text_len:
             phones = phones.split(" ")
             tone = [int(i) for i in tone.split(" ")]
             word2ph = [int(i) for i in word2ph.split(" ")]
@@ -79,8 +74,7 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
                 [audiopath, spk, language, text, phones, tone, word2ph]
             )
             lengths.append(os.path.getsize(audiopath) // (2 * self.hop_length))
-            # else:
-            #     skipped += 1
+
         logger.info(
             "skipped: "
             + str(skipped)
@@ -94,16 +88,19 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
         # separate filename, speaker_id and text
         audiopath, sid, language, text, phones, tone, word2ph = audiopath_sid_text
 
-        bert, ja_bert, en_bert, phones, tone, language = self.get_text(
+        # --- ИЗМЕНЕНИЕ: распаковываем ru_bert ---
+        bert, ja_bert, en_bert, ru_bert, phones, tone, language = self.get_text(
             text, word2ph, phones, tone, language, audiopath
         )
 
         spec, wav = self.get_audio(audiopath)
         sid = torch.LongTensor([int(self.spk_map[sid])])
         style_vec = torch.FloatTensor(np.load(f"{audiopath}.npy"))
+
         if self.use_jp_extra:
             return (phones, spec, wav, sid, tone, language, ja_bert, style_vec)
         else:
+            # --- ИЗМЕНЕНИЕ: Возвращаем ru_bert в кортеже ---
             return (
                 phones,
                 spec,
@@ -114,6 +111,7 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
                 bert,
                 ja_bert,
                 en_bert,
+                ru_bert, # <-- Добавлено
                 style_vec,
             )
 
@@ -166,30 +164,43 @@ class TextAudioSpeakerLoader(torch.utils.data.Dataset):
             for i in range(len(word2ph)):
                 word2ph[i] = word2ph[i] * 2
             word2ph[0] += 1
+
         bert_path = wav_path.replace(".wav", ".bert.pt")
+
+        # --- ИЗМЕНЕНИЕ: Логика загрузки с учетом размерности RU (768) ---
+        bert_ori = None
         try:
             bert_ori = torch.load(bert_path)
             assert bert_ori.shape[-1] == len(phone)
         except Exception as e:
-            logger.warning("Bert load Failed")
+            logger.warning(f"Bert load Failed: {bert_path}")
             logger.warning(e)
+
+            # Если загрузка не удалась, создаем пустышку нужного размера
+            dim = 768 if language_str == "RU" else 1024
+            bert_ori = torch.zeros(dim, len(phone))
+
+        # Инициализируем нулями все языковые слоты
+        bert = torch.zeros(1024, len(phone))
+        ja_bert = torch.zeros(1024, len(phone))
+        en_bert = torch.zeros(1024, len(phone))
+        ru_bert = torch.zeros(768, len(phone)) # <-- 768 для RU
 
         if language_str == "ZH":
             bert = bert_ori
-            ja_bert = torch.zeros(1024, len(phone))
-            en_bert = torch.zeros(1024, len(phone))
         elif language_str == "JP":
-            bert = torch.zeros(1024, len(phone))
             ja_bert = bert_ori
-            en_bert = torch.zeros(1024, len(phone))
         elif language_str == "EN":
-            bert = torch.zeros(1024, len(phone))
-            ja_bert = torch.zeros(1024, len(phone))
             en_bert = bert_ori
+        elif language_str == "RU":
+            ru_bert = bert_ori # <-- Присваиваем для RU
+
         phone = torch.LongTensor(phone)
         tone = torch.LongTensor(tone)
         language = torch.LongTensor(language)
-        return bert, ja_bert, en_bert, phone, tone, language
+
+        # --- ИЗМЕНЕНИЕ: Возвращаем ru_bert ---
+        return bert, ja_bert, en_bert, ru_bert, phone, tone, language
 
     def get_sid(self, sid):
         sid = torch.LongTensor([int(sid)])
@@ -232,24 +243,32 @@ class TextAudioSpeakerCollate:
         text_padded = torch.LongTensor(len(batch), max_text_len)
         tone_padded = torch.LongTensor(len(batch), max_text_len)
         language_padded = torch.LongTensor(len(batch), max_text_len)
-        # This is ZH bert if not use_jp_extra, JA bert if use_jp_extra
+
         bert_padded = torch.FloatTensor(len(batch), 1024, max_text_len)
+
         if not self.use_jp_extra:
             ja_bert_padded = torch.FloatTensor(len(batch), 1024, max_text_len)
             en_bert_padded = torch.FloatTensor(len(batch), 1024, max_text_len)
+            # --- ИЗМЕНЕНИЕ: Паддинг для RU (768) ---
+            ru_bert_padded = torch.FloatTensor(len(batch), 768, max_text_len)
+
         style_vec = torch.FloatTensor(len(batch), 256)
 
         spec_padded = torch.FloatTensor(len(batch), batch[0][1].size(0), max_spec_len)
         wav_padded = torch.FloatTensor(len(batch), 1, max_wav_len)
+
         text_padded.zero_()
         tone_padded.zero_()
         language_padded.zero_()
         spec_padded.zero_()
         wav_padded.zero_()
         bert_padded.zero_()
+
         if not self.use_jp_extra:
             ja_bert_padded.zero_()
             en_bert_padded.zero_()
+            ru_bert_padded.zero_() # <-- Обнуляем RU тензор
+
         style_vec.zero_()
 
         for i in range(len(ids_sorted_decreasing)):
@@ -281,12 +300,20 @@ class TextAudioSpeakerCollate:
             if self.use_jp_extra:
                 style_vec[i, :] = row[7]
             else:
+                # Внимание на индексы!
+                # 6: bert, 7: ja_bert, 8: en_bert, 9: ru_bert, 10: style_vec
+
                 ja_bert = row[7]
                 ja_bert_padded[i, :, : ja_bert.size(1)] = ja_bert
 
                 en_bert = row[8]
                 en_bert_padded[i, :, : en_bert.size(1)] = en_bert
-                style_vec[i, :] = row[9]
+
+                # --- ИЗМЕНЕНИЕ: Достаем ru_bert из строки батча ---
+                ru_bert = row[9]
+                ru_bert_padded[i, :, : ru_bert.size(1)] = ru_bert
+
+                style_vec[i, :] = row[10] # Индекс сместился на 1
 
         if self.use_jp_extra:
             return (
@@ -303,6 +330,7 @@ class TextAudioSpeakerCollate:
                 style_vec,
             )
         else:
+            # --- ИЗМЕНЕНИЕ: Возвращаем ru_bert_padded в конце ---
             return (
                 text_padded,
                 text_lengths,
@@ -316,6 +344,7 @@ class TextAudioSpeakerCollate:
                 bert_padded,
                 ja_bert_padded,
                 en_bert_padded,
+                ru_bert_padded, # <--
                 style_vec,
             )
 
@@ -346,11 +375,6 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
 
         self.buckets, self.num_samples_per_bucket = self._create_buckets()
         logger.info(f"Bucket info: {self.num_samples_per_bucket}")
-        # logger.info(
-        #     f"Unused samples: {len(self.lengths) - sum(self.num_samples_per_bucket)}"
-        # )
-        # ↑マイナスになることあるし、別にこれは使われないサンプル数ではないようだ……
-        # バケットの仕組みはよく分からない
 
         self.total_size = sum(self.num_samples_per_bucket)
         self.num_samples = self.total_size // self.num_replicas
@@ -369,7 +393,6 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
                     buckets.pop(i)
                     self.boundaries.pop(i + 1)
             assert all(len(bucket) > 0 for bucket in buckets)
-        # When one bucket is not traversed
         except Exception as e:
             logger.info("Bucket warning ", e)
             for i in range(len(buckets) - 1, -1, -1):
