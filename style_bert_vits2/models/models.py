@@ -411,7 +411,7 @@ class TextEncoder(nn.Module):
         style_emb = self.style_proj(style_vec.unsqueeze(1))
 
         x = (
-            self.emb(x
+            self.emb(x)
             + self.tone_emb(tone)
             + self.language_emb(language)
             + bert_emb
