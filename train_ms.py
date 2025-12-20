@@ -349,6 +349,12 @@ def run():
         logger.info("Freezing JP bert encoder !!!")
         for param in net_g.enc_p.ja_bert_proj.parameters():
             param.requires_grad = False
+
+    if getattr(hps.train, "freeze_RU_bert", False):
+        logger.info("Freezing RU bert encoder !!!")
+        for param in net_g.enc_p.ru_bert_proj.parameters():
+            param.requires_grad = False
+
     if getattr(hps.train, "freeze_style", False):
         logger.info("Freezing style encoder !!!")
         for param in net_g.enc_p.style_proj.parameters():
@@ -629,6 +635,7 @@ def train_and_evaluate(
         bert,
         ja_bert,
         en_bert,
+        ru_bert, # --- RU CHANGE ---
         style_vec,
     ) in enumerate(train_loader):
         if net_g.module.use_noise_scaled_mas:
@@ -652,6 +659,11 @@ def train_and_evaluate(
         bert = bert.cuda(local_rank, non_blocking=True)
         ja_bert = ja_bert.cuda(local_rank, non_blocking=True)
         en_bert = en_bert.cuda(local_rank, non_blocking=True)
+
+        # --- RU CHANGE ---
+        ru_bert = ru_bert.cuda(local_rank, non_blocking=True)
+        # -----------------
+
         style_vec = style_vec.cuda(local_rank, non_blocking=True)
 
         with autocast(enabled=hps.train.bf16_run, dtype=torch.bfloat16):
@@ -675,6 +687,7 @@ def train_and_evaluate(
                 bert,
                 ja_bert,
                 en_bert,
+                ru_bert, # --- RU CHANGE ---
                 style_vec,
             )
             mel = spec_to_mel_torch(
@@ -912,6 +925,7 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             bert,
             ja_bert,
             en_bert,
+            ru_bert, # --- RU CHANGE ---
             style_vec,
         ) in enumerate(eval_loader):
             x, x_lengths = x.cuda(), x_lengths.cuda()
@@ -921,6 +935,11 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             bert = bert.cuda()
             ja_bert = ja_bert.cuda()
             en_bert = en_bert.cuda()
+
+            # --- RU CHANGE ---
+            ru_bert = ru_bert.cuda()
+            # -----------------
+
             tone = tone.cuda()
             language = language.cuda()
             style_vec = style_vec.cuda()
@@ -934,6 +953,7 @@ def evaluate(hps, generator, eval_loader, writer_eval):
                     bert,
                     ja_bert,
                     en_bert,
+                    ru_bert, # --- RU CHANGE ---
                     style_vec,
                     y=spec,
                     max_len=1000,

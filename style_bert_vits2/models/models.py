@@ -376,9 +376,16 @@ class TextEncoder(nn.Module):
         nn.init.normal_(self.tone_emb.weight, 0.0, hidden_channels**-0.5)
         self.language_emb = nn.Embedding(NUM_LANGUAGES, hidden_channels)
         nn.init.normal_(self.language_emb.weight, 0.0, hidden_channels**-0.5)
+
         self.bert_proj = nn.Conv1d(1024, hidden_channels, 1)
         self.ja_bert_proj = nn.Conv1d(1024, hidden_channels, 1)
         self.en_bert_proj = nn.Conv1d(1024, hidden_channels, 1)
+
+        # --- RU CHANGE ---
+        # RuBERT имеет размерность 768
+        self.ru_bert_proj = nn.Conv1d(768, hidden_channels, 1)
+        # -----------------
+
         self.style_proj = nn.Linear(256, hidden_channels)
 
         self.encoder = attentions.Encoder(
@@ -401,6 +408,7 @@ class TextEncoder(nn.Module):
         bert: torch.Tensor,
         ja_bert: torch.Tensor,
         en_bert: torch.Tensor,
+        ru_bert: torch.Tensor, # --- RU CHANGE ---
         style_vec: torch.Tensor,
         sid: torch.Tensor,
         g: Optional[torch.Tensor] = None,
@@ -408,6 +416,11 @@ class TextEncoder(nn.Module):
         bert_emb = self.bert_proj(bert).transpose(1, 2)
         ja_bert_emb = self.ja_bert_proj(ja_bert).transpose(1, 2)
         en_bert_emb = self.en_bert_proj(en_bert).transpose(1, 2)
+
+        # --- RU CHANGE ---
+        ru_bert_emb = self.ru_bert_proj(ru_bert).transpose(1, 2)
+        # -----------------
+
         style_emb = self.style_proj(style_vec.unsqueeze(1))
 
         x = (
@@ -417,6 +430,7 @@ class TextEncoder(nn.Module):
             + bert_emb
             + ja_bert_emb
             + en_bert_emb
+            + ru_bert_emb # --- RU CHANGE ---
             + style_emb
         ) * math.sqrt(
             self.hidden_channels
@@ -963,6 +977,7 @@ class SynthesizerTrn(nn.Module):
         bert: torch.Tensor,
         ja_bert: torch.Tensor,
         en_bert: torch.Tensor,
+        ru_bert: torch.Tensor, # --- RU CHANGE ---
         style_vec: torch.Tensor,
     ) -> tuple[
         torch.Tensor,
@@ -979,7 +994,7 @@ class SynthesizerTrn(nn.Module):
         else:
             g = self.ref_enc(y.transpose(1, 2)).unsqueeze(-1)
         x, m_p, logs_p, x_mask = self.enc_p(
-            x, x_lengths, tone, language, bert, ja_bert, en_bert, style_vec, sid, g=g
+            x, x_lengths, tone, language, bert, ja_bert, en_bert, ru_bert, style_vec, sid, g=g # --- RU CHANGE ---
         )
         z, m_q, logs_q, y_mask = self.enc_q(y, y_lengths, g=g)
         z_p = self.flow(z, y_mask, g=g)
@@ -1059,6 +1074,7 @@ class SynthesizerTrn(nn.Module):
         bert: torch.Tensor,
         ja_bert: torch.Tensor,
         en_bert: torch.Tensor,
+        ru_bert: torch.Tensor, # --- RU CHANGE ---
         style_vec: torch.Tensor,
         noise_scale: float = 0.667,
         length_scale: float = 1.0,
@@ -1075,7 +1091,7 @@ class SynthesizerTrn(nn.Module):
             assert y is not None
             g = self.ref_enc(y.transpose(1, 2)).unsqueeze(-1)
         x, m_p, logs_p, x_mask = self.enc_p(
-            x, x_lengths, tone, language, bert, ja_bert, en_bert, style_vec, sid, g=g
+            x, x_lengths, tone, language, bert, ja_bert, en_bert, ru_bert, style_vec, sid, g=g # --- RU CHANGE ---
         )
         logw = self.sdp(x, x_mask, g=g, reverse=True, noise_scale=noise_scale_w) * (
             sdp_ratio
