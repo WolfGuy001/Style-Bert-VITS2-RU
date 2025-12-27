@@ -11,13 +11,14 @@ sys.path.append(os.getcwd())
 # Mock BERT models
 from style_bert_vits2.nlp import bert_models
 class SimpleMockTokenizer:
+    def __init__(self):
+        self.text_words = []
     def __call__(self, text, add_special_tokens=False):
-        # Just split by space to mock word-level tokens
-        words = text.split()
-        return {'input_ids': list(range(len(words)))}
+        self.text_words = text.split()
+        return {'input_ids': list(range(len(self.text_words)))}
     def convert_ids_to_tokens(self, ids):
-        # We'll just use dummy tokens, G2P only cares if they start with ##
-        return ["word"] * len(ids)
+        # Map IDs back to the words we split
+        return [self.text_words[i] for i in ids]
 
 mock_tokenizer = SimpleMockTokenizer()
 bert_models.load_tokenizer = MagicMock(return_value=mock_tokenizer)
@@ -33,7 +34,8 @@ test_sentences = [
     "Хорошо, когда всё хорошо.",
     "Щегол запел песню.",
     "Цирк уехал, клоуны остались.",
-    "Юбка и янтарь."
+    "Юбка и янтарь.",
+    "жук молоко"
 ]
 
 all_ok = True

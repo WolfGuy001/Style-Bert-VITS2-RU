@@ -52,6 +52,9 @@ def g2p(text: str):
                 if i < len(ps):
                     curr_phones.append(ps[i])
                     curr_tones.append(1)
+            elif ps[i] == 'ˌ':
+                # Ignore secondary stress or mark as 0, but don't add to phones
+                pass 
             elif ps[i] == ' ' or ps[i] == '\t':
                 # Skip spaces if they escaped strip
                 pass
