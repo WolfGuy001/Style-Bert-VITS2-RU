@@ -17,12 +17,16 @@ from typing import TYPE_CHECKING, Optional, Union, cast
 from transformers import (
     AutoModelForMaskedLM,
     AutoTokenizer,
-    DebertaV2Model,
-    DebertaV2TokenizerFast,
     PreTrainedModel,
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
 )
+
+try:
+    from transformers import DebertaV2Model, DebertaV2TokenizerFast
+except Exception:
+    DebertaV2Model = None
+    DebertaV2TokenizerFast = None
 
 from style_bert_vits2.constants import DEFAULT_BERT_MODEL_PATHS, Languages
 from style_bert_vits2.logging import logger

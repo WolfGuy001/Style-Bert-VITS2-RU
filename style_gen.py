@@ -4,6 +4,26 @@ from typing import Any
 
 import numpy as np
 import torch
+import torch.torch_version
+try:
+    import pyannote.audio.core.task
+    HAS_PYANNOTE = True
+except ImportError:
+    HAS_PYANNOTE = False
+
+if hasattr(torch.serialization, "add_safe_globals"):
+    globals_to_add = [torch.torch_version.TorchVersion]
+    if HAS_PYANNOTE:
+        # Added broad try-import to allow essential pyannote globals
+        import pyannote.audio.core.task
+        globals_to_add.append(pyannote.audio.core.task.Specifications)
+        try:
+            from pyannote.audio.core.task import Problem, Resolution
+            globals_to_add.extend([Problem, Resolution])
+        except ImportError:
+            pass
+    torch.serialization.add_safe_globals(globals_to_add)
+
 from numpy.typing import NDArray
 from pyannote.audio import Inference, Model
 from tqdm import tqdm

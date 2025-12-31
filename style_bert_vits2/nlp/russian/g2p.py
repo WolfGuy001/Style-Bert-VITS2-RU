@@ -1,7 +1,31 @@
+import os
+import sys
+import re
+
+# Force eSpeak path if not set - MUST BE BEFORE PHONEMIZER IMPORT
+espeak_ng_path = r"C:\Program Files\eSpeak NG"
+if not os.path.exists(espeak_ng_path):
+    espeak_ng_path = r"C:\Program Files (x86)\eSpeak NG"
+
+if os.path.exists(espeak_ng_path):
+    os.environ["PHONEMIZER_ESPEAK_PATH"] = espeak_ng_path
+    if espeak_ng_path not in os.environ["PATH"]:
+        os.environ["PATH"] = espeak_ng_path + ";" + os.environ["PATH"]
+
+from phonemizer import phonemize
+from phonemizer.backend import EspeakBackend
 from style_bert_vits2.nlp import bert_models
 from style_bert_vits2.constants import Languages
-from phonemizer import phonemize
-import re
+from style_bert_vits2.logging import logger
+
+# Definitive fix for phonemizer on Windows
+if os.path.exists(espeak_ng_path):
+    dll_path = os.path.join(espeak_ng_path, "libespeak-ng.dll")
+    if os.path.exists(dll_path):
+        EspeakBackend.set_library(dll_path)
+
+if not EspeakBackend.is_available():
+    logger.warning("phonemizer: EspeakBackend is not available. Russian G2P will fail.")
 
 def g2p(text: str):
     tokenizer = bert_models.load_tokenizer(Languages.RU)

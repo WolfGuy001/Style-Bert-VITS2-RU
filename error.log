@@ -1,0 +1,34 @@
+C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\librosa\util\files.py:10: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_filename
+Traceback (most recent call last):
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\utils\import_utils.py", line 2317, in __getattr__
+    module = self._get_module(self._class_to_module[name])
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\utils\import_utils.py", line 2347, in _get_module
+    raise e
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\utils\import_utils.py", line 2345, in _get_module
+    return importlib.import_module("." + module_name, self.__name__)
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\importlib\__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
+  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\models\deberta_v2\modeling_deberta_v2.py", line 25, in <module>
+    from ...modeling_layers import GradientCheckpointingLayer
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\modeling_layers.py", line 28, in <module>
+    from .processing_utils import Unpack
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\processing_utils.py", line 34, in <module>
+    from .audio_utils import AudioInput, load_audio
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\audio_utils.py", line 52, in <module>
+    import soxr
+ModuleNotFoundError: No module named 'soxr'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "C:\Users\wolfguy\miniconda3\envs\sbv2\lib\site-packages\transformers\utils\import_utils.py", line 2320, in __getattr__
+    raise ModuleNotFoundError(
+ModuleNotFoundError: Could not import module 'DebertaV2Model'. Are this object's requirements defined correctly?

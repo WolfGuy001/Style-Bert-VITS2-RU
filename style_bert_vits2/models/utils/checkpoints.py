@@ -5,6 +5,24 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 import torch
+import torch.torch_version
+try:
+    import pyannote.audio.core.task
+    HAS_PYANNOTE = True
+except ImportError:
+    HAS_PYANNOTE = False
+
+if hasattr(torch.serialization, "add_safe_globals"):
+    globals_to_add = [torch.torch_version.TorchVersion]
+    if HAS_PYANNOTE:
+        import pyannote.audio.core.task
+        globals_to_add.append(pyannote.audio.core.task.Specifications)
+        try:
+            from pyannote.audio.core.task import Problem, Resolution
+            globals_to_add.extend([Problem, Resolution])
+        except ImportError:
+            pass
+    torch.serialization.add_safe_globals(globals_to_add)
 
 from style_bert_vits2.logging import logger
 

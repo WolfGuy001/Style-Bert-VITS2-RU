@@ -2,6 +2,11 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
+import torch.torch_version
+
+if hasattr(torch.serialization, "add_safe_globals"):
+    torch.serialization.add_safe_globals([torch.torch_version.TorchVersion])
+
 import torch.multiprocessing as mp
 from tqdm import tqdm
 
